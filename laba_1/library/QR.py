@@ -1,5 +1,5 @@
 import numpy as np
-from library.progon import norm
+from library.iteration import norm
 
 
 def sign(x):
@@ -15,7 +15,8 @@ def get_householder_matrix(A, col_num):
     n = A.shape[0]
     v = np.zeros(n)
     a = A[:, col_num]
-    v[col_num] = a[col_num] + sign(a[col_num]) * norm(a[col_num:])
+    sigma = 1 if a[col_num] == 0 else sign(a[col_num])
+    v[col_num] = a[col_num] + sigma * norm(a[col_num:])
     for i in range(col_num + 1, n):
         v[i] = a[i]
     v = v[:, np.newaxis]

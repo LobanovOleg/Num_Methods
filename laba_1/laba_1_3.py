@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import library.matrix as matrix
-from library.progon import solve_system_iterative
+from library.iteration import solve_system_iterative
 from library.zeidel import solve_system_zeidel
 
 
@@ -9,7 +9,7 @@ f = open("data/p1_3.json")
 data = json.loads(f.read())
 X = np.array(data["a"], dtype='float')
 b = np.array(data["b"], dtype='float')
-eps = 0.00001
+eps = 0.00000001
 print("Метод простых итераций:")
 res, n = solve_system_iterative(X, b, eps)
 if n == -1:

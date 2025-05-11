@@ -1,21 +1,4 @@
 import copy
-from numpy import *
-
-ROUND = 6
-
-
-def scam_func(i, n, l, u):
-    for j in range(i, n):
-        if u[i][i] != 0:
-            l[j][i] = u[j][i] / u[i][i]
-        else:
-            raise ValueError(f"Нельзя делить на ноль! u[{i}][{i}] = {u[i][i]}")
-
-
-def scam_func2(i, n, k, l, u):
-    for j in range(k - 1, n):
-        u[i][j] = u[i][j] - l[i][k - 1] * u[k - 1][j]
-
 
 def solve_lu(l, u, b):
     """
@@ -35,35 +18,6 @@ def solve_lu(l, u, b):
             s += u[i][j] * x[j]
         x[i] = (y[i] - s) / u[i][i]
     return x
-
-
-def decomposite(matrix):
-    matrix = array(matrix)
-    result = zeros((matrix.shape[0], matrix.shape[1]), dtype='float64')
-    result[0] = matrix[0]
-    for i in range(1, matrix.shape[0]):
-        result[i] = matrix[i] + (- matrix[i][0] / result[0][0]) * result[0]
-        result[i][0] = matrix[i][0] / result[0][0]
-
-    for k in range(1, matrix.shape[0] - 1):
-        for i in range(k + 1, matrix.shape[0]):
-            result[i][k + 1:] = result[i][k + 1:] + (- result[i][k] / result[k][k]) * result[k][k + 1:]
-            result[i][k] = result[i][k] / result[k][k]
-
-    return round(result, ROUND)
-
-
-def solve_lu_one_matrix(lu, b):
-    size = lu.shape[0]
-    solutions = array([0] * size, dtype='float64')
-    solutions[-1] = b[-1] / lu[-1][-1]
-    for i in range(size - 2, -1, -1):
-        solutions[i] = b[i]
-        for j in range(i + 1, size):
-            solutions[i] -= lu[i][j] * solutions[j]
-        solutions[i] = round(solutions[i] / lu[i][i], ROUND)
-    solutions = round(solutions, ROUND)
-    return reshape(solutions, (1, solutions.shape[0]))
 
 
 class MyMatrix:
@@ -140,93 +94,60 @@ class MyMatrix:
                 transposed[j][i] = self[i][j]
         return MyMatrix(transposed)
 
-    def transpose(self):
-        """
-        transposes original matrix
-        """
-        if self.__size_x == self.__size_y:
-            for i in range(self.__size_x):
-                for j in range(i, self.__size_y):
-                    self[i][j], self[j][i] = self[j][i], self[i][j]
-            return
-        else:
-            new_matrix = self.transposed()
-            self.__base_matrix = new_matrix.__base_matrix
-            self.__size_x = new_matrix.__size_x
-            self.__size_y = new_matrix.__size_y
-            return
-
     def lu_decompose(self):
         n = len(self)
-        l = MyMatrix([[0] * n for _ in range(n)])
-        u = MyMatrix([[0] * n for _ in range(n)])
-        self.pivot = list(range(n))  # Вектор перестановок
-        for i in range(n):
-            for j in range(n):
-                u[i][j] = self[i][j]
+        LU = MyMatrix([row.copy() for row in self.__base_matrix])
 
         for k in range(n):
-            # Частичный выбор ведущего элемента
-            max_row = k
-            for i in range(k + 1, n):
-                if abs(u[i][k]) > abs(u[max_row][k]):
-                    max_row = i
-            if max_row != k:
-                # Перестановка строк в U и L
-                u[k], u[max_row] = u[max_row], u[k]
-                for i in range(k):
-                    l[k][i], l[max_row][i] = l[max_row][i], l[k][i]
-                # Обновление вектора перестановок
-                self.pivot[k], self.pivot[max_row] = self.pivot[max_row], self.pivot[k]
-
-            if u[k][k] == 0:
+            if LU[k][k] == 0:
                 raise ValueError("Матрица вырождена, LU-разложение невозможно.")
 
-            for i in range(k, n):
-                l[i][k] = u[i][k] / u[k][k]
-
             for i in range(k + 1, n):
-                for j in range(k, n):
-                    u[i][j] -= l[i][k] * u[k][j]
+                LU[i][k] /= LU[k][k]
+                for j in range(k + 1, n):
+                    LU[i][j] -= LU[i][k] * LU[k][j]
 
-        return l, u
+        # Извлечение L и U из объединённой матрицы LU
+        L = MyMatrix([[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)])
+        U = MyMatrix([[0.0 for _ in range(n)] for _ in range(n)])
+        for i in range(n):
+            for j in range(n):
+                if j > i:
+                    U[i][j] = LU[i][j]
+                elif i == j:
+                    U[i][j] = LU[i][j]
+                else:
+                    L[i][j] = LU[i][j]
+        return L, U, LU
 
     def det(self):
-        l, u = self.lu_decompose()
-        num_perm = sum(1 for i in range(len(self)) if self.pivot[i] != i)
-        det_sign = (-1) ** num_perm
+        l, u, lu = self.lu_decompose()
         res = 1
         for i in range(len(u)):
             res *= u[i][i]
-        return det_sign * res
+        return res
 
     def inversed(self):
+        """
+        :return: inversed copy of the original matrix
+        """
         n = len(self)
         E = MyMatrix([[float(i == j) for i in range(n)] for j in range(n)])
-        l, u = self.lu_decompose()
+        l, u, lu = self.lu_decompose()
         res = []
-        for col in E.transposed():  # Итерация по столбцам E
-            pb = [col[self.pivot[i]] for i in range(n)]
-            y = solve_lu(l, u, pb)
-            res.append(y)
+        for e in E:
+            res_row = solve_lu(l, u, e)
+            res.append(res_row)
         return MyMatrix(res).transposed()
 
-    def inverse(self):
-        """
-        inverse the original matrix
-        """
-        new_matrix = self.inversed()
-        self.__base_matrix = new_matrix.__base_matrix
-        self.__size_x = new_matrix.__size_x
-        self.__size_y = new_matrix.__size_y
-        return
-
     def solve_system(self, b):
-        l, u = self.lu_decompose()
-        # Применение перестановок к вектору b
-        pb = [b[self.pivot[i]] for i in range(len(self))]
-        y = solve_lu(l, u, pb)
-        return MyMatrix(y).transposed()
+        """
+        solves self * x = b
+        :param b: free members
+        :return: solution in column
+        """
+        l, u, lu = self.lu_decompose()
+        return MyMatrix(solve_lu(l, u, b)).transposed()
 
     def solve_system_tridiagonal(self, b):
         """
@@ -238,22 +159,23 @@ class MyMatrix:
         n = len(self)
         eq = 0
         leq = 0
+        if abs(self[0][0]) < abs(self[0][1]) or abs(self[-1][-1]) < abs(self[-1][-2]):
+            to_use = False
         for i in range(1, n-1):
-            if abs(self[i][1]) < abs(self[i][0]) + abs(self[i][2]) or abs(self[i][1]) < abs(self[i-1][-1]) + abs(self[i+1][0]):
+            if abs(self[i][1]) >= abs(self[i][0]) + abs(self[i][2]):
+                leq += 1
+            else:
                 eq += 1
                 to_use = False
-            else:
-                leq += 1
         to_use *= leq < eq
-        p, q = [0] * n, [0] * n
-        ans = [0] * n
+        p, q, ans = [0] * n, [0] * n, [0] * n
         p[0] = self[0][1] / -self[0][0]
         q[0] = b[0] / self[0][0]
         for i in range(1, n-1):
-            p[i] = -self[i][2] / (self[i][1] + self[i][0]*p[i-1])
-            q[i] = (b[i] - self[i][0]*q[i-1]) / (self[i][1] + self[i][0]*p[i-1])
+            p[i] = -self[i][2] / (self[i][1] + self[i][0] * p[i-1])
+            q[i] = (b[i] - self[i][0] *q [i-1]) / (self[i][1] + self[i][0] * p[i-1])
         p[-1] = 0
-        q[-1] = (b[-1] - self[-1][0]*q[-2]) / (self[-1][1] + self[-1][0]*p[-2])
+        q[-1] = (b[-1] - self[-1][0] * q[-2]) / (self[-1][1] + self[-1][0] * p[-2])
         ans[-1] = q[-1]
         for i in range(n-1, 0, -1):
             ans[i-1] = p[i-1] * ans[i] + q[i-1]

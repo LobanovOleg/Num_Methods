@@ -1,4 +1,3 @@
-import sys
 import json
 
 import library.matrix as matrix
@@ -10,18 +9,19 @@ E = matrix.MyMatrix([[1, 0, 0, 0],
 file = open("data/p1_1.json")
 data = json.loads(file.read())
 X = matrix.MyMatrix(data["a"])
-L, U = X.lu_decompose()
-P = matrix.MyMatrix([[1 if j == X.pivot[i] else 0 for j in range(len(X))] for i in range(len(X))])
-# PA = P * X
+L, U, LU = X.lu_decompose()
 det = X.det()
 X_inverse = X.inversed()
 res = X.solve_system(data["b"])
 b = matrix.MyMatrix([data["b"]]).transposed()
-print("LU разложение:")
+print("LU разложение:", LU, sep='\n')
+print('\n')
 print("L:", L, sep="\n")
+print('\n')
 print("U:", U, sep="\n")
+print('\n')
 print("\nLU проверка разложения: ", end='')
-if P.inversed() * L * U == X:
+if L * U == X:
     print("OK")
 else:
     print("WRONG")

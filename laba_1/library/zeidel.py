@@ -1,5 +1,5 @@
 import numpy as np
-from library.progon import norm
+from library.iteration import norm
 
 
 def zeidel_multiplication(alpha, x, beta):
@@ -38,6 +38,7 @@ def solve_system_zeidel(a, b, eps):
         prev_x = np.copy(cur_x)
         cur_x = zeidel_multiplication(alpha, prev_x, beta)
         iterations += 1
-        if norm(prev_x - cur_x) <= eps:
+        max_division = max(abs(cur_x - prev_x))
+        if max_division < eps:
             return cur_x, iterations
     return None, -1
